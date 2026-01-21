@@ -247,7 +247,9 @@ redirects:
 Customize the workflow to filter issues/PRs by labels:
 
 ```bash
-gh issue list --label "bug" --state closed --since "24 hours ago"
+# Get closed issues with specific label (filtered with jq)
+YESTERDAY=$(date -u -d "yesterday" +%Y-%m-%d)
+gh issue list --label "bug" --state closed --json number,title,closedAt --jq "[.[] | select(.closedAt >= \"${YESTERDAY}T00:00:00Z\")] | .[] | \"- ✅ #\(.number) - \(.title)\""
 ```
 
 ### Release Notes Generation
