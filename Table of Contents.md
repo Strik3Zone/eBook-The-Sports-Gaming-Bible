@@ -1,5 +1,9 @@
 # Master Table of Contents (Skeleton Document)
 
+## Quick Links
+### [📋 Changelog](CHANGELOG.md) - Daily automated updates
+### [📚 Changelog Guide](docs/CHANGELOG_GUIDE.md) - Documentation
+
 ## Front Matter
 ### A.1 Software Startup Toolkit
 ### A.2 Recommended Folder Structure & Workflow
