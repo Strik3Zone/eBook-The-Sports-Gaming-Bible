@@ -15,9 +15,13 @@ NC='\033[0m' # No Color
 if [ -z "$1" ]; then
     TODAY=$(date -u +%Y-%m-%d)
     YESTERDAY=$(date -u -d "yesterday" +%Y-%m-%d)
+    # For current date, use "since 24 hours ago"
+    DATE_FILTER="--since=\"24 hours ago\""
 else
     TODAY="$1"
     YESTERDAY=$(date -u -d "$TODAY - 1 day" +%Y-%m-%d 2>/dev/null || echo "$TODAY")
+    # For specific date, filter by date range
+    DATE_FILTER="--since=\"$TODAY 00:00:00\" --until=\"$TODAY 23:59:59\""
 fi
 
 echo -e "${BLUE}📋 Generating changelog for $TODAY${NC}"
@@ -31,9 +35,9 @@ echo "" >> "$TEMP_FILE"
 # Track if we have any changes
 HAS_CHANGES=false
 
-# Get commits from the last 24 hours
+# Get commits from the specified date range
 echo -e "${YELLOW}🔍 Checking commits...${NC}"
-COMMITS=$(git log --since="24 hours ago" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || echo "")
+COMMITS=$(eval git log $DATE_FILTER --pretty=format:"'- %s (%h)'" --no-merges 2>/dev/null || echo "")
 if [ -n "$COMMITS" ]; then
     echo "#### 🔄 Recent Commits" >> "$TEMP_FILE"
     echo "$COMMITS" >> "$TEMP_FILE"
@@ -44,7 +48,7 @@ fi
 
 # Get file changes statistics
 echo -e "${YELLOW}🔍 Checking file changes...${NC}"
-FILES_CHANGED=$(git log --since="24 hours ago" --name-only --pretty=format: --no-merges | sort -u | grep -v '^$' | wc -l)
+FILES_CHANGED=$(eval git log $DATE_FILTER --name-only --pretty=format: --no-merges | sort -u | grep -v '^$' | wc -l)
 if [ "$FILES_CHANGED" -gt 0 ]; then
     echo "#### 📁 Files Activity" >> "$TEMP_FILE"
     echo "- Modified/Added: $FILES_CHANGED file(s)" >> "$TEMP_FILE"
