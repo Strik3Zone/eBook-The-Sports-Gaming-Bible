@@ -14,37 +14,37 @@ permissions:
 jobs:
   update-changelog:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fetch all history for accurate changelog
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+
       - name: Generate Changelog Entry
         id: generate
         run: |
           # Set date variables
           TODAY=$(date -u +%Y-%m-%d)
           YESTERDAY=$(date -u -d "yesterday" +%Y-%m-%d)
-          
+
           echo "Generating changelog for $TODAY"
-          
+
           # Create temporary file for new entries
           TEMP_FILE=$(mktemp)
-          
+
           echo "### $TODAY" > "$TEMP_FILE"
           echo "" >> "$TEMP_FILE"
-          
+
           # Track if we have any changes
           HAS_CHANGES=false
-          
+
           # Get commits from the last 24 hours
           COMMITS=$(git log --since="24 hours ago" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || echo "")
           if [ -n "$COMMITS" ]; then
@@ -53,7 +53,7 @@ jobs:
             echo "" >> "$TEMP_FILE"
             HAS_CHANGES=true
           fi
-          
+
           # Get closed issues from the last 24 hours using GitHub API
           ISSUES=$(gh issue list --state closed --limit 100 --json number,title,closedAt --jq "[.[] | select(.closedAt >= \"${YESTERDAY}T00:00:00Z\")] | .[] | \"- ✅ Closed: #\(.number) - \(.title)\"" 2>/dev/null || echo "")
           if [ -n "$ISSUES" ]; then
@@ -62,7 +62,7 @@ jobs:
             echo "" >> "$TEMP_FILE"
             HAS_CHANGES=true
           fi
-          
+
           # Get merged PRs from the last 24 hours using GitHub API
           PRS=$(gh pr list --state merged --limit 100 --json number,title,mergedAt --jq "[.[] | select(.mergedAt >= \"${YESTERDAY}T00:00:00Z\")] | .[] | \"- 🔀 Merged: #\(.number) - \(.title)\"" 2>/dev/null || echo "")
           if [ -n "$PRS" ]; then
@@ -71,7 +71,7 @@ jobs:
             echo "" >> "$TEMP_FILE"
             HAS_CHANGES=true
           fi
-          
+
           # Get opened issues
           NEW_ISSUES=$(gh issue list --state open --limit 100 --json number,title,createdAt --jq "[.[] | select(.createdAt >= \"${YESTERDAY}T00:00:00Z\")] | .[] | \"- 🆕 Opened: #\(.number) - \(.title)\"" 2>/dev/null || echo "")
           if [ -n "$NEW_ISSUES" ]; then
@@ -80,7 +80,7 @@ jobs:
             echo "" >> "$TEMP_FILE"
             HAS_CHANGES=true
           fi
-          
+
           # Get opened PRs
           NEW_PRS=$(gh pr list --state open --limit 100 --json number,title,createdAt --jq "[.[] | select(.createdAt >= \"${YESTERDAY}T00:00:00Z\")] | .[] | \"- 🔄 Opened: #\(.number) - \(.title)\"" 2>/dev/null || echo "")
           if [ -n "$NEW_PRS" ]; then
@@ -89,38 +89,38 @@ jobs:
             echo "" >> "$TEMP_FILE"
             HAS_CHANGES=true
           fi
-          
+
           # If no changes, add a note
           if [ "$HAS_CHANGES" = false ]; then
             echo "_No activity recorded for this date_" >> "$TEMP_FILE"
             echo "" >> "$TEMP_FILE"
           fi
-          
+
           echo "---" >> "$TEMP_FILE"
           echo "" >> "$TEMP_FILE"
-          
+
           # Save the temp file path for next step
           echo "temp_file=$TEMP_FILE" >> $GITHUB_OUTPUT
           echo "has_changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
           echo "today=$TODAY" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Update CHANGELOG.md
         if: steps.generate.outputs.has_changes == 'true'
         run: |
           TEMP_FILE="${{ steps.generate.outputs.temp_file }}"
           TODAY="${{ steps.generate.outputs.today }}"
-          
+
           # Check if CHANGELOG.md exists
           if [ ! -f CHANGELOG.md ]; then
             echo "CHANGELOG.md not found, skipping update"
             exit 0
           fi
-          
+
           # Create backup
           cp CHANGELOG.md CHANGELOG.md.bak
-          
+
           # Find the CHANGELOG_START marker and insert new content after it
           if grep -q "<!-- CHANGELOG_START -->" CHANGELOG.md; then
             # Split the file at the marker, insert new content, and reassemble
@@ -142,34 +142,34 @@ jobs:
                 }
               }
             ' CHANGELOG.md.bak > CHANGELOG.md
-            
+
             # Update the last updated timestamp
             sed -i "s/\*Last updated: .*/\*Last updated: $TODAY (Automated)\*/" CHANGELOG.md
           else
             echo "Warning: CHANGELOG_START marker not found in CHANGELOG.md"
           fi
-          
+
           # Clean up
           rm -f CHANGELOG.md.bak "$TEMP_FILE"
-      
+
       - name: Commit and Push Changes
         if: steps.generate.outputs.has_changes == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # Check if there are changes to commit
           if git diff --quiet CHANGELOG.md; then
             echo "No changes to commit"
             exit 0
           fi
-          
+
           git add CHANGELOG.md
           git commit -m "📝 Daily changelog update - ${{ steps.generate.outputs.today }}"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Summary
         run: |
           if [ "${{ steps.generate.outputs.has_changes }}" = "true" ]; then
