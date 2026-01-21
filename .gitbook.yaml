@@ -1,0 +1,9 @@
+root: ./
+
+structure:
+  readme: README.md
+  summary: Table of Contents.md
+
+redirects:
+  changelog: CHANGELOG.md
+  changelog-guide: docs/CHANGELOG_GUIDE.md
